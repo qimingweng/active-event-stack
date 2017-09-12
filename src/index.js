@@ -1,7 +1,15 @@
-import {OrderedMap, Map} from 'immutable';
-import {uniqueId} from 'lodash';
+let idCounter = 0;
 
-const uniqueEventId = uniqueId.bind(null, 'active_event_');
+function uid(prefix) {
+  ++idCounter;
+  return String(prefix) + idCounter;
+}
+
+function last(array) {
+  return array[array.length - 1];
+}
+
+// ---
 
 if (typeof document != 'undefined') {
   document.addEventListener('click', onEvent.bind(null, 'click'), true);
@@ -9,28 +17,37 @@ if (typeof document != 'undefined') {
   document.addEventListener('keyup', onEvent.bind(null, 'keyup'));
 }
 
-let listenables = OrderedMap();
+let listenables = [];
 
 function onEvent(type, event) {
-  const listenable = listenables.last();
+  const listenable = last(listenables);
   if (listenable) {
-    let handler = listenable.get(type);
+    const handler = listenable.events[type];
     if (typeof handler == 'function') {
       handler(event);
     }
   }
-};
+}
 
 const EventStack = {
   addListenable(listenArray) {
     /* ex: [['click', clickHandler], ['keydown', keydownHandler]] */
-    const id = uniqueEventId();
-    const listenable = Map(listenArray);
-    listenables = listenables.set(id, listenable);
+    const id = uid('active_event_');
+    listenables.push({
+      id,
+      events: listenArray.reduce(
+        (memo, [ type, fn ]) => {
+          memo[type] = fn;
+          return memo;
+        },
+        {}
+      ),
+    });
     return id;
   },
   removeListenable(id) {
-    listenables = listenables.delete(id);
+    const idx = listenables.findIndex(x => x.id === id)
+    listenables.splice(idx, 1);
   }
 };
 
